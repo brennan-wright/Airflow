@@ -49,17 +49,10 @@ x-airflow-common:
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: 'GkxMliAcMIUCwTDnjmY6EA/Rebew2FW8dES/2T/CYgE='
+    AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__SMTP__SMTP_HOST: 'smtp.gmail.com'
-    AIRFLOW__SMTP__SMTP_STARTTLS: 'True'
-    AIRFLOW__SMTP__SMTP_SSL: 'False'
-    AIRFLOW__SMTP__SMTP_USER: 'brennan@nmedia3.com'
-    AIRFLOW__SMTP__SMTP_PASSWORD: 'zFEytWP2sFpF##k^rCA'
-    AIRFLOW__SMTP__SMTP_PORT: '587'
-    AIRFLOW__SMTP__SMTP_MAIL_FROM: 'brennan@nmedia3.com'
-
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
@@ -115,11 +108,23 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 10s
+      timeout: 10s
+      retries: 5
     restart: always
 
   airflow-worker:
     <<: *airflow-common
     command: celery worker
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 10s
+      timeout: 10s
+      retries: 5
     restart: always
 
   airflow-init:
